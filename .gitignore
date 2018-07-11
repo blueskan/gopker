@@ -1,0 +1,3 @@
+gopker
+vendor/*
+!vendor/manifest
