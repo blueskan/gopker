@@ -1,4 +1,4 @@
-### Gopker is Simple API Wrapper for Docker API, it's simplify your tests with capabilities like NewContainer, StartContainer and StopContainer.
+### Gopker is Wrapper for Docker API, it's simplify your tests with capabilities like NewContainer, StartContainer and StopContainer.
 
 Simple usage example:
 
