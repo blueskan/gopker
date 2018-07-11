@@ -46,7 +46,7 @@ type Container interface {
 	Start() (types.ContainerJSON, error)
 	Stop() error
 	Kill() error
-	Port(string, string, ...string) Container
+	PortMapping(string, string, ...string) Container
 	Env(string) Container
 	Volume(string) Container
 }
@@ -76,7 +76,7 @@ func NewContainer(image string) (Container, error) {
 		}}, nil
 }
 
-func (container *container) Port(hostPort string, containerPort string, protocols ...string) Container {
+func (container *container) PortMapping(hostPort string, containerPort string, protocols ...string) Container {
 	protocol := "tcp"
 
 	if len(protocols) > 0 {

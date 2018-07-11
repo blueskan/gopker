@@ -28,7 +28,7 @@ if err != nil {
 }
 
 container, err := containerSetup.
-	Port("8080", "80").
+	PortMapping("8080", "80").
 	Volume("/var/www").
 	Start()
 ```
