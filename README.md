@@ -14,7 +14,7 @@ go get github.com/blueskan/gopker
 Import
 ```
 import(
-    _ "github.com/blueskan/gopker"
+    . "github.com/blueskan/gopker"
 )
 ```
 
