@@ -8,8 +8,3 @@ Container("nginx").
 	Volume("/var/www").
 	Start()
 ```
-
-Todos:
-    - Add Tests
-    - List Capabilities
-    - Fixed Panics
