@@ -1,0 +1,1 @@
+# Simple API Wrapper for Docker API, it's simplify your tests with actions like NewContainer, RunContainer and StopContainer.
