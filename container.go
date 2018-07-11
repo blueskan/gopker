@@ -1,4 +1,4 @@
-package main
+package gopker
 
 import (
 	docker "docker.io/go-docker"
@@ -34,18 +34,19 @@ type container struct {
 	ContainerID   string
 	Image         string
 	Status        containerStatus
+	IpAddress     string
 	PortMappings  []portMapping
 	Volumes       []string
 	DockerContext *dockerContext
 }
 
-func Container(image string) *container {
+func Container(image string) (*container, error) {
 	ctx := context.Background()
 
 	cli, _ := docker.NewEnvClient()
 
 	if r, err := cli.ImagePull(ctx, image, types.ImagePullOptions{}); err != nil {
-		panic(err)
+		return nil, err
 	} else {
 		io.Copy(os.Stdout, r)
 	}
@@ -59,7 +60,7 @@ func Container(image string) *container {
 		DockerContext: &dockerContext{
 			DockerApiClient: cli,
 			DockerContext:   &ctx,
-		}}
+		}}, nil
 }
 
 func (container *container) Port(hostPort string, containerPort string, protocols ...string) *container {
@@ -68,7 +69,8 @@ func (container *container) Port(hostPort string, containerPort string, protocol
 	if len(protocols) > 0 {
 		protocol = protocols[0]
 	} else if len(protocols) > 1 {
-		panic("panic")
+		protocol = protocols[0]
+		log.Println("Only first protocol is used.")
 	}
 
 	container.PortMappings = append(
@@ -85,7 +87,7 @@ func (container *container) Volume(target string) *container {
 	return container
 }
 
-func (container *container) Start() string {
+func (container *container) Start() (*container, error) {
 	ctx := container.DockerContext.DockerContext
 	cli := container.DockerContext.DockerApiClient
 
@@ -97,41 +99,38 @@ func (container *container) Start() string {
 		PortBindings: prepareBindings(container.PortMappings),
 	}, nil, "")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-
-	log.Printf("Container ready to be started")
 
 	container.ContainerID = resp.ID
 
 	if err := cli.ContainerStart(*ctx, container.ContainerID, types.ContainerStartOptions{}); err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	inspectionResult, err := cli.ContainerInspect(*ctx, container.ContainerID)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	container.Status = RUNNING
+	container.IpAddress = inspectionResult.NetworkSettings.IPAddress
 
-	log.Printf("Container %s started..", container.ContainerID)
-
-	return inspectionResult.NetworkSettings.IPAddress
+	return container, nil
 }
 
-func (container *container) Stop() {
+func (container *container) Stop() error {
 	ctx := container.DockerContext.DockerContext
 	cli := container.DockerContext.DockerApiClient
 
 	if err := cli.ContainerStop(*ctx, container.ContainerID, nil); err != nil {
-		panic(err)
+		return err
 	}
 
 	container.Status = STOPPED
 
-	log.Printf("Container %s stopped..", container.ContainerID)
+	return nil
 }
 
 func prepareBindings(portMappings []portMapping) nat.PortMap {
