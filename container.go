@@ -1,7 +1,7 @@
 package gopker
 
 import (
-	docker "docker.io/go-docker"
+	"docker.io/go-docker"
 	"docker.io/go-docker/api/types"
 	dContainer "docker.io/go-docker/api/types/container"
 	"github.com/docker/go-connections/nat"
@@ -43,7 +43,10 @@ type container struct {
 func Container(image string) (*container, error) {
 	ctx := context.Background()
 
-	cli, _ := docker.NewEnvClient()
+	cli, err := docker.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
 
 	if r, err := cli.ImagePull(ctx, image, types.ImagePullOptions{}); err != nil {
 		return nil, err
@@ -52,7 +55,6 @@ func Container(image string) (*container, error) {
 	}
 
 	return &container{
-		ContainerID:  "",
 		Image:        image,
 		Status:       READY,
 		PortMappings: make([]portMapping, 0),
