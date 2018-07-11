@@ -1,7 +1,7 @@
 package gopker
 
 import (
-	docker "docker.io/go-docker"
+	"docker.io/go-docker"
 	"docker.io/go-docker/api/types"
 	"golang.org/x/net/context"
 )
