@@ -21,7 +21,7 @@ import(
 *Start container*
 
 ```
-containerSetup, err := Container("nginx")
+containerSetup, err := NewContainer("nginx")
 
 if err != nil {
     panic(err)

@@ -17,6 +17,7 @@ const (
 	READY   containerStatus = 0
 	RUNNING containerStatus = 1
 	STOPPED containerStatus = 2
+	DEAD    containerStatus = 3
 )
 
 type dockerContext struct {
@@ -31,17 +32,26 @@ type portMapping struct {
 }
 
 type container struct {
-	ContainerID   string
-	Image         string
-	Status        containerStatus
-	IpAddress     string
-	PortMappings  []portMapping
-	Volumes       []string
-	Environments  []string
-	DockerContext *dockerContext
+	containerID  string
+	image        string
+	status       containerStatus
+	ipAddress    string
+	portMappings []portMapping
+	volumes      []string
+	environments []string
+	context      *dockerContext
 }
 
-func Container(image string) (*container, error) {
+type Container interface {
+	Start() (types.ContainerJSON, error)
+	Stop() error
+	Kill() error
+	Port(string, string, ...string) Container
+	Env(string) Container
+	Volume(string) Container
+}
+
+func NewContainer(image string) (Container, error) {
 	ctx := context.Background()
 
 	cli, err := docker.NewEnvClient()
@@ -56,17 +66,17 @@ func Container(image string) (*container, error) {
 	}
 
 	return &container{
-		Image:        image,
-		Status:       READY,
-		PortMappings: make([]portMapping, 0),
-		Volumes:      make([]string, 0),
-		DockerContext: &dockerContext{
+		image:        image,
+		status:       READY,
+		portMappings: make([]portMapping, 0),
+		volumes:      make([]string, 0),
+		context: &dockerContext{
 			DockerApiClient: cli,
 			DockerContext:   &ctx,
 		}}, nil
 }
 
-func (container *container) Port(hostPort string, containerPort string, protocols ...string) *container {
+func (container *container) Port(hostPort string, containerPort string, protocols ...string) Container {
 	protocol := "tcp"
 
 	if len(protocols) > 0 {
@@ -76,69 +86,81 @@ func (container *container) Port(hostPort string, containerPort string, protocol
 		log.Println("Only first protocol is used.")
 	}
 
-	container.PortMappings = append(
-		container.PortMappings,
+	container.portMappings = append(
+		container.portMappings,
 		portMapping{hostPort, containerPort, protocol},
 	)
 
 	return container
 }
 
-func (container *container) Volume(target string) *container {
-	container.Volumes = append(container.Volumes, target)
+func (container *container) Volume(target string) Container {
+	container.volumes = append(container.volumes, target)
 
 	return container
 }
 
-func (container *container) Env(env string) *container {
-	container.Environments = append(container.Environments, env)
+func (container *container) Env(env string) Container {
+	container.environments = append(container.environments, env)
 
 	return container
 }
 
-func (container *container) Start() (*container, error) {
-	ctx := container.DockerContext.DockerContext
-	cli := container.DockerContext.DockerApiClient
+func (container *container) Start() (types.ContainerJSON, error) {
+	ctx := container.context.DockerContext
+	cli := container.context.DockerApiClient
 
 	resp, err := cli.ContainerCreate(*ctx, &dContainer.Config{
-		Image: container.Image,
-		Env:   container.Environments,
+		Image: container.image,
+		Env:   container.environments,
 		Tty:   true,
 	}, &dContainer.HostConfig{
-		Binds:        container.Volumes,
-		PortBindings: prepareBindings(container.PortMappings),
+		Binds:        container.volumes,
+		PortBindings: prepareBindings(container.portMappings),
 	}, nil, "")
 	if err != nil {
-		return nil, err
+		return types.ContainerJSON{}, err
 	}
 
-	container.ContainerID = resp.ID
-
-	if err := cli.ContainerStart(*ctx, container.ContainerID, types.ContainerStartOptions{}); err != nil {
-		return nil, err
+	container.containerID = resp.ID
+	if err := cli.ContainerStart(*ctx, container.containerID, types.ContainerStartOptions{}); err != nil {
+		return types.ContainerJSON{}, err
 	}
 
-	inspectionResult, err := cli.ContainerInspect(*ctx, container.ContainerID)
+	container.status = RUNNING
 
+	inspectionResult, err := cli.ContainerInspect(*ctx, container.containerID)
 	if err != nil {
-		return nil, err
+		return types.ContainerJSON{}, err
 	}
 
-	container.Status = RUNNING
-	container.IpAddress = inspectionResult.NetworkSettings.IPAddress
+	container.ipAddress = inspectionResult.NetworkSettings.IPAddress
 
-	return container, nil
+	return inspectionResult, nil
 }
 
 func (container *container) Stop() error {
-	ctx := container.DockerContext.DockerContext
-	cli := container.DockerContext.DockerApiClient
+	ctx := container.context.DockerContext
+	cli := container.context.DockerApiClient
 
-	if err := cli.ContainerStop(*ctx, container.ContainerID, nil); err != nil {
+	if err := cli.ContainerStop(*ctx, container.containerID, nil); err != nil {
 		return err
 	}
 
-	container.Status = STOPPED
+	container.status = STOPPED
+
+	return nil
+}
+
+func (container *container) Kill() error {
+	ctx := container.context.DockerContext
+	cli := container.context.DockerApiClient
+
+	if err := cli.ContainerKill(*ctx, container.containerID, ""); err != nil {
+		return err
+	}
+
+	container.status = DEAD
 
 	return nil
 }

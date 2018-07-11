@@ -7,7 +7,7 @@ import (
 )
 
 func TestDocker_Containers(t *testing.T) {
-	helloWorldContainer, err := gopker.Container("hello-world")
+	helloWorldContainer, err := gopker.NewContainer("hello-world")
 	if err != nil {
 		t.Fail()
 	}
@@ -31,5 +31,5 @@ func TestDocker_Containers(t *testing.T) {
 		t.Fail()
 	}
 
-	log.Printf("Test passed!")
+	log.Printf("Container list test passed!")
 }
