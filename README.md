@@ -18,6 +18,8 @@ import(
 )
 ```
 
+*Start container*
+
 ```
 containerSetup, err := Container("nginx")
 
