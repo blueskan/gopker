@@ -65,12 +65,6 @@ func NewContainer(image string) (Container, error) {
 		return nil, err
 	}
 
-	if r, err := cli.ImagePull(ctx, image, types.ImagePullOptions{}); err != nil {
-		return nil, err
-	} else {
-		io.Copy(os.Stdout, r)
-	}
-
 	return &container{
 		image:        image,
 		status:       READY,
@@ -117,6 +111,12 @@ func (container *container) Env(env string) Container {
 func (container *container) Start() (types.ContainerJSON, error) {
 	ctx := container.context.DockerContext
 	cli := container.context.DockerApiClient
+
+	if r, err := cli.ImagePull(*ctx, container.image, types.ImagePullOptions{}); err != nil {
+		return types.ContainerJSON{}, err
+	} else {
+		io.Copy(os.Stdout, r)
+	}
 
 	resp, err := cli.ContainerCreate(*ctx, &dContainer.Config{
 		Image: container.image,
