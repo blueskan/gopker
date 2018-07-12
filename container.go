@@ -37,6 +37,7 @@ type container struct {
 	IpAddress     string
 	PortMappings  []portMapping
 	Volumes       []string
+	Environments  []string
 	DockerContext *dockerContext
 }
 
@@ -89,12 +90,19 @@ func (container *container) Volume(target string) *container {
 	return container
 }
 
+func (container *container) Env(env string) *container {
+	container.Environments = append(container.Environments, env)
+
+	return container
+}
+
 func (container *container) Start() (*container, error) {
 	ctx := container.DockerContext.DockerContext
 	cli := container.DockerContext.DockerApiClient
 
 	resp, err := cli.ContainerCreate(*ctx, &dContainer.Config{
 		Image: container.Image,
+		Env:   container.Environments,
 		Tty:   true,
 	}, &dContainer.HostConfig{
 		Binds:        container.Volumes,
@@ -141,10 +149,7 @@ func prepareBindings(portMappings []portMapping) nat.PortMap {
 	for _, portMapping := range portMappings {
 		portBindings := make([]nat.PortBinding, 0)
 
-		portBindings = append(portBindings, nat.PortBinding{
-			"0.0.0.0",
-			portMapping.hostPort,
-		})
+		portBindings = append(portBindings, nat.PortBinding{"0.0.0.0", portMapping.hostPort})
 
 		containerPort := nat.Port(portMapping.containerPort + "/" + portMapping.protocol)
 		portMap[containerPort] = portBindings
