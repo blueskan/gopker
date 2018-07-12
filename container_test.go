@@ -42,6 +42,35 @@ func TestContainer_Stop(t *testing.T) {
 	log.Printf("Container stop test passed!")
 }
 
+func TestContainer_Mount(t *testing.T) {
+	container, err := gopker.NewContainer("alpine")
+
+	if err != nil {
+		t.Fail()
+	}
+
+	_, err = container.Mount("/tmp", "/tmp").Start()
+
+	if err != nil {
+		t.Fail()
+	}
+
+	containers, err := gopker.Containers()
+
+	for _, container := range containers {
+		if container.Image == "alpine" && len(container.Mounts) <= 0 {
+			t.Fail()
+		}
+	}
+
+	err = container.Kill()
+	if err != nil {
+		t.Fail()
+	}
+
+	log.Printf("Container mount test passed!")
+}
+
 func TestContainer_Kill(t *testing.T) {
 	container, err := gopker.NewContainer("alpine")
 	if err != nil {

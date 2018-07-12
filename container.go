@@ -178,6 +178,7 @@ func prepareMounts(mountMappings []mount) []dockerMount.Mount {
 
 	for _, mountMapping := range mountMappings {
 		mountMap = append(mountMap, dockerMount.Mount {
+			Type: "bind",
 			Source: mountMapping.source,
 			Target: mountMapping.target,
 		})
