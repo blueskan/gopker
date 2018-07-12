@@ -164,7 +164,7 @@ func (container *container) Kill() error {
 	ctx := container.context.DockerContext
 	cli := container.context.DockerApiClient
 
-	if err := cli.ContainerKill(*ctx, container.containerID, ""); err != nil {
+	if err := cli.ContainerKill(*ctx, container.containerID, "9"); err != nil {
 		return err
 	}
 
