@@ -2,6 +2,7 @@ package gopker
 
 import (
 	"docker.io/go-docker"
+	dockerMount "docker.io/go-docker/api/types/mount"
 	"docker.io/go-docker/api/types"
 	dContainer "docker.io/go-docker/api/types/container"
 	"github.com/docker/go-connections/nat"
@@ -31,13 +32,18 @@ type portMapping struct {
 	protocol      string
 }
 
+type mount struct {
+	target string
+	source string
+}
+
 type container struct {
 	containerID  string
 	image        string
 	status       containerStatus
 	ipAddress    string
 	portMappings []portMapping
-	volumes      []string
+	mounts       []mount
 	environments []string
 	context      *dockerContext
 }
@@ -48,7 +54,7 @@ type Container interface {
 	Kill() error
 	PortMapping(string, string, ...string) Container
 	Env(string) Container
-	Volume(string) Container
+	Mount(string, string) Container
 }
 
 func NewContainer(image string) (Container, error) {
@@ -69,7 +75,7 @@ func NewContainer(image string) (Container, error) {
 		image:        image,
 		status:       READY,
 		portMappings: make([]portMapping, 0),
-		volumes:      make([]string, 0),
+		mounts:       make([]mount, 0),
 		context: &dockerContext{
 			DockerApiClient: cli,
 			DockerContext:   &ctx,
@@ -94,8 +100,10 @@ func (container *container) PortMapping(hostPort string, containerPort string, p
 	return container
 }
 
-func (container *container) Volume(target string) Container {
-	container.volumes = append(container.volumes, target)
+func (container *container) Mount(target string, source string) Container {
+	container.mounts = append(container.mounts, mount {
+		target: target,
+		source: source})
 
 	return container
 }
@@ -115,7 +123,7 @@ func (container *container) Start() (types.ContainerJSON, error) {
 		Env:   container.environments,
 		Tty:   true,
 	}, &dContainer.HostConfig{
-		Binds:        container.volumes,
+		Mounts:       prepareMounts(container.mounts),
 		PortBindings: prepareBindings(container.portMappings),
 	}, nil, "")
 	if err != nil {
@@ -163,6 +171,19 @@ func (container *container) Kill() error {
 	container.status = DEAD
 
 	return nil
+}
+
+func prepareMounts(mountMappings []mount) []dockerMount.Mount {
+	mountMap := make([]dockerMount.Mount, 0)
+
+	for _, mountMapping := range mountMappings {
+		mountMap = append(mountMap, dockerMount.Mount {
+			Source: mountMapping.source,
+			Target: mountMapping.target,
+		})
+	}
+
+	return mountMap
 }
 
 func prepareBindings(portMappings []portMapping) nat.PortMap {
